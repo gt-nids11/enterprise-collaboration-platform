@@ -2,39 +2,59 @@ package models;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
+/**
+ * Represents a registered user of the collaboration platform.
+ *
+ * Passwords are stored only as hashes.
+ *
+ * This class follows encapsulation principles and exposes only
+ * the required setters.
+ *
+ * @author Nidhi Patil
+ * @version 1.0
+ */
 public class User {
 
-    private static int idCounter = 1000;
+    private final UUID id;
 
-    private final int userId;
-    private String username;
-    private String email;
+    private final String username;
+
+    private final String email;
+
     private String passwordHash;
-    private final LocalDateTime createdAt;
-    private Role role;
+
+    private final Role role;
+
     private UserStatus status;
 
+    private final LocalDateTime createdAt;
+
+    private LocalDateTime lastLogin;
+
+    private boolean online;
+
     /**
-     * Constructor for creating a new user.
-     * User ID and creation time are generated automatically.
+     * Creates a new user.
      */
-    public User(String username, String email, String passwordHash) {
-        this.userId = ++idCounter;
+    public User(String username,
+                String email,
+                String passwordHash,
+                Role role) {
+
+        this.id = UUID.randomUUID();
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
+        this.role = role;
+        this.status = UserStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
-        this.role = Role.MEMBER;
-        this.status = UserStatus.OFFLINE;
+        this.online = false;
     }
 
-    // ===========================
-    // Getters
-    // ===========================
-
-    public int getUserId() {
-        return userId;
+    public UUID getId() {
+        return id;
     }
 
     public String getUsername() {
@@ -49,10 +69,6 @@ public class User {
         return passwordHash;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
     public Role getRole() {
         return role;
     }
@@ -61,48 +77,57 @@ public class User {
         return status;
     }
 
-    // ===========================
-    // Setters
-    // ===========================
-
-    public void setUsername(String username) {
-        this.username = username;
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
-    public void setEmail(String email) {
-        this.email = email;
+    public LocalDateTime getLastLogin() {
+        return lastLogin;
+    }
+
+    public boolean isOnline() {
+        return online;
     }
 
     /**
-     * Used internally after password hashing.
-     * Never store plain text passwords.
+     * Updates the user's password hash.
      */
-    public void setPasswordHash(String passwordHash) {
+    public void updatePassword(String passwordHash) {
         this.passwordHash = passwordHash;
     }
 
-    public void setRole(Role role) {
-        this.role = role;
-    }
-
+    /**
+     * Updates account status.
+     */
     public void setStatus(UserStatus status) {
         this.status = status;
     }
 
-    // ===========================
-    // Utility Methods
-    // ===========================
+    /**
+     * Marks the user online.
+     */
+    public void login() {
+        this.online = true;
+        this.lastLogin = LocalDateTime.now();
+    }
+
+    /**
+     * Marks the user offline.
+     */
+    public void logout() {
+        this.online = false;
+    }
 
     @Override
     public String toString() {
-        return "User {" +
-                "\n userId = " + userId +
-                ",\n username = '" + username + '\'' +
-                ",\n email = '" + email + '\'' +
-                ",\n role = " + role +
-                ",\n status = " + status +
-                ",\n createdAt = " + createdAt +
-                "\n}";
+
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", role=" + role +
+                ", status=" + status +
+                ", online=" + online +
+                '}';
     }
 
     @Override
@@ -116,11 +141,12 @@ public class User {
 
         User other = (User) obj;
 
-        return userId == other.userId;
+        return id.equals(other.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(userId);
+        return Objects.hash(id);
     }
+
 }

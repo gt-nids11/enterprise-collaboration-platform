@@ -29,6 +29,12 @@ public class Database {
         return users.containsKey(username);
     }
 
+    public boolean emailExists(String email) {
+
+        return users.values().stream()
+                .anyMatch(user -> user.getEmail() != null && user.getEmail().equals(email));
+    }
+
     public void removeUser(String username) {
 
         users.remove(username);
@@ -37,6 +43,11 @@ public class Database {
     public int totalUsers() {
 
         return users.size();
+    }
+
+    public void saveUser(User user) {
+
+        addUser(user);
     }
 
 }

@@ -1,135 +1,121 @@
-
 package authentication;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import database.Database;
+import exception.AuthenticationException;
+import exception.UserAlreadyExistsException;
+import exception.ValidationException;
+import models.Role;
+import models.Session;
 import models.User;
 import models.UserStatus;
 
 public class AuthenticationService {
 
-    private final Map<String, User> users;
-
+    private final Database database;
     private final SessionManager sessionManager;
 
-    public AuthenticationService() {
-
-        users = new HashMap<>();
-
-        sessionManager = new SessionManager();
-
+    public AuthenticationService(Database database) {
+        this.database = database;
+        this.sessionManager = new SessionManager();
     }
 
-    public boolean register(String username,
-                            String email,
-                            String password) {
+    // -------------------- REGISTER --------------------
 
-        if (!Validator.isValidUsername(username)) {
+    public User register(String username,
+                         String email,
+                         String password,
+                         Role role)
+            throws ValidationException, UserAlreadyExistsException {
 
-            System.out.println("Invalid Username");
+        Validator.validateUsername(username);
+        Validator.validatePassword(password);
 
-            return false;
+        if (database.userExists(username)) {
+            throw new UserAlreadyExistsException("Username already exists.");
         }
 
-        if (!Validator.isValidEmail(email)) {
-
-            System.out.println("Invalid Email");
-
-            return false;
+        if (database.emailExists(email)) {
+            throw new UserAlreadyExistsException("Email already registered.");
         }
 
-        if (!Validator.isValidPassword(password)) {
+        String hashedPassword = PasswordHasher.hashPassword(password);
 
-            System.out.println("Weak Password");
+        User user = new User(
+                username,
+                email,
+                hashedPassword,
+                role
+        );
 
-            return false;
-        }
+        database.saveUser(user);
 
-        if (users.containsKey(username)) {
-
-            System.out.println("Username already exists");
-
-            return false;
-        }
-
-        String hash = PasswordHasher.hashPassword(password);
-
-        User user = new User(username, email, hash);
-
-        users.put(username, user);
-
-        System.out.println("Registration Successful");
-
-        return true;
-
+        return user;
     }
 
-    public boolean login(String username,
-                         String password) {
+    // -------------------- LOGIN --------------------
 
-        User user = users.get(username);
+    public Session login(String username, String password)
+            throws AuthenticationException {
+
+        User user = database.getUser(username);
 
         if (user == null) {
-
-            System.out.println("User not found");
-
-            return false;
+            throw new AuthenticationException("User does not exist.");
         }
 
-        String hash = PasswordHasher.hashPassword(password);
+        boolean valid = PasswordHasher.verify(password, user.getPasswordHash());
 
-        if (!user.getPasswordHash().equals(hash)) {
-
-            System.out.println("Incorrect Password");
-
-            return false;
+        if (!valid) {
+            throw new AuthenticationException("Invalid password.");
         }
 
-        sessionManager.login(user);
-
-        user.setStatus(UserStatus.ONLINE);
-
-        System.out.println("Login Successful");
-
-        return true;
-
+        Session session = new Session(user);
+        sessionManager.createSession(user);
+        return session;
     }
 
-    public void logout(String username) {
+    // -------------------- LOGOUT --------------------
 
-        User user = users.get(username);
+    public void logout(Session session) {
 
-        if(user != null){
-
-            user.setStatus(UserStatus.OFFLINE);
-
-            sessionManager.logout(username);
-
+        if (session == null) {
+            return;
         }
 
+        User user = session.getUser();
+
+        user.logout();
+
+        sessionManager.invalidateSession(session.getSessionId());
     }
 
-    public User findUser(String username){
+    // -------------------- CHANGE PASSWORD --------------------
 
-        return users.get(username);
+    public void changePassword(User user,
+                               String oldPassword,
+                               String newPassword)
+            throws AuthenticationException, ValidationException {
 
-    }
-
-    public void showRegisteredUsers(){
-
-        for(User user : users.values()){
-
-            System.out.println(user);
-
+        if (!PasswordHasher.verify(oldPassword, user.getPasswordHash())) {
+            throw new AuthenticationException("Old password is incorrect.");
         }
 
+        Validator.validatePassword(newPassword);
+
+        user.updatePassword(
+                PasswordHasher.hashPassword(newPassword)
+        );
     }
 
-    public SessionManager getSessionManager(){
+    // -------------------- GET USER --------------------
 
+    public User getUser(String username) {
+        return database.getUser(username);
+    }
+
+    // -------------------- SESSION --------------------
+
+    public SessionManager getSessionManager() {
         return sessionManager;
-
     }
-
 }
