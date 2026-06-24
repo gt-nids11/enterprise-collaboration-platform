@@ -1,11 +1,5 @@
 package network;
 
-import protocol.Packet;
-import protocol.PacketType;
-
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -19,67 +13,60 @@ public class Server {
 
         try {
 
-            // Create Server Socket
             serverSocket = new ServerSocket(PORT);
 
             System.out.println("==================================");
             System.out.println(" Enterprise Collaboration Server");
             System.out.println(" Server started on port " + PORT);
-            System.out.println(" Waiting for client...");
             System.out.println("==================================");
 
-            // Wait for a client
-            Socket clientSocket = serverSocket.accept();
+            while (true) {
 
-            System.out.println("Client connected: "
-                    + clientSocket.getInetAddress());
+                System.out.println("\nWaiting for client...");
 
-            // Create output stream FIRST
-            ObjectOutputStream outputStream =
-                    new ObjectOutputStream(clientSocket.getOutputStream());
+                Socket clientSocket = serverSocket.accept();
 
-            outputStream.flush();
+                System.out.println(
+                        "Client Connected: "
+                                + clientSocket.getInetAddress()
+                );
 
-            // Then create input stream
-            ObjectInputStream inputStream =
-                    new ObjectInputStream(clientSocket.getInputStream());
+                ClientHandler clientHandler =
+                        new ClientHandler(clientSocket);
 
-            // Receive Packet
-            Packet receivedPacket = (Packet) inputStream.readObject();
+                clientHandler.start();
+            }
 
-            System.out.println("\nPacket Received:");
-            System.out.println(receivedPacket);
+        } catch (Exception e) {
 
-            // Create Response Packet
-            Packet responsePacket = new Packet(
-                    PacketType.SUCCESS,
-                    "SERVER",
-                    receivedPacket.getSender(),
-                    "Packet received successfully."
+            System.out.println(
+                    "Server Error: "
+                            + e.getMessage()
             );
-
-            // Send Response
-            outputStream.writeObject(responsePacket);
-            outputStream.flush();
-
-            System.out.println("\nResponse sent to client.");
-
-            // Close resources
-            inputStream.close();
-            outputStream.close();
-            clientSocket.close();
-            serverSocket.close();
-
-            System.out.println("\nServer stopped.");
-
         }
+    }
 
-        catch (IOException | ClassNotFoundException e) {
+    public void stop() {
 
-            System.out.println("Server Error: " + e.getMessage());
+        try {
 
+            if (serverSocket != null
+                    && !serverSocket.isClosed()) {
+
+                serverSocket.close();
+
+                System.out.println(
+                        "Server stopped successfully."
+                );
+            }
+
+        } catch (Exception e) {
+
+            System.out.println(
+                    "Error stopping server: "
+                            + e.getMessage()
+            );
         }
-
     }
 
     public static void main(String[] args) {
@@ -87,7 +74,5 @@ public class Server {
         Server server = new Server();
 
         server.start();
-
     }
-
 }
