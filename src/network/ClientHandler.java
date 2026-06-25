@@ -1,6 +1,7 @@
 package network;
 
 import protocol.Packet;
+import protocol.PacketType;
 
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -9,13 +10,14 @@ import java.net.Socket;
 public class ClientHandler extends Thread {
 
     private final Socket clientSocket;
+    private String username;
 
     public ClientHandler(Socket clientSocket) {
         this.clientSocket = clientSocket;
     }
 
     
-    @Override
+@Override
 public void run() {
 
     try {
@@ -38,7 +40,28 @@ public void run() {
                 );
 
         Packet receivedPacket =
-                (Packet) inputStream.readObject();
+        (Packet) inputStream.readObject();
+
+System.out.println(
+        "DEBUG: Packet Type = "
+                + receivedPacket.getType()
+);
+
+if (receivedPacket.getType() == PacketType.LOGIN) {
+
+    System.out.println(
+            "DEBUG: LOGIN block entered"
+    );
+
+    username = receivedPacket.getSender();
+
+    SessionManager.addUser(
+            username,
+            this
+    );
+
+    SessionManager.displayActiveUsers();
+}
 
         System.out.println(
                 "\nPacket received from "
@@ -47,9 +70,8 @@ public void run() {
 
         System.out.println(receivedPacket);
 
-        // Send response back to client
         Packet responsePacket = new Packet(
-                protocol.PacketType.SUCCESS,
+                PacketType.SUCCESS,
                 "SERVER",
                 receivedPacket.getSender(),
                 "Packet received successfully."
@@ -62,6 +84,14 @@ public void run() {
                 "Response sent to "
                         + receivedPacket.getSender()
         );
+
+        // Remove user when connection closes
+        if (username != null) {
+
+            SessionManager.removeUser(username);
+
+            SessionManager.displayActiveUsers();
+        }
 
         inputStream.close();
         outputStream.close();
